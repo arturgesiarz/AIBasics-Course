@@ -1423,21 +1423,73 @@ column_transformer
 # Napisz co, w twojej opinii, jest ważniejsze dla naszego problemu, ***precision*** czy ***recall***? Jak moglibyśmy, nie zmieniając modelu, zmienić ich stosunek?
 
 # %% editable=true slideshow={"slide_type": ""} tags=["ex"]
-# your_code
+from sklearn.metrics import f1_score, precision_score, recall_score
+
+def asses_logistic_model(model, X_train, X_test, y_train, y_test):
+    test_predict = model.predict(X_test)
+
+    precision_test = precision_score(y_test, test_predict)
+    recall_test = recall_score(y_test, test_predict)
+    f1_test = f1_score(y_test, test_predict)
+
+    print(f'Test precision: {precision_test*100:.2f}%')
+    print(f'Test recall: {recall_test*100:.2f}%')
+    print(f'Test f1: {f1_test*100:.2f}%')
+
+    return precision_test, recall_test, f1_test
 
 
 # %% editable=true slideshow={"slide_type": ""} tags=["ex"]
-# your_code
+from sklearn.linear_model import LogisticRegression
 
+log_reg = LogisticRegression(random_state=0, class_weight="balanced", penalty=None)
+log_reg.fit(X_train, y_train)
+
+nol_precision, nol_recall, nol_f1 = asses_logistic_model(log_reg ,X_train, X_test, y_train, y_test)
+
+
+# %%
+from sklearn.linear_model import LogisticRegressionCV
+
+log_reg_1 = LogisticRegressionCV(random_state=0, class_weight="balanced", Cs=100, cv=5, n_jobs=-1, scoring="f1", penalty="l1", solver="saga")
+log_reg_1.fit(X_train, y_train)
+
+l1_precision, l1_recall, l1_f1 = asses_logistic_model(log_reg_1 ,X_train, X_test, y_train, y_test)
+
+# %%
+from sklearn.linear_model import LogisticRegressionCV
+
+log_reg_2 = LogisticRegressionCV(random_state=0, class_weight="balanced", Cs=100, cv=5, n_jobs=-1, scoring="f1", penalty="l2", solver="saga")
+log_reg_2.fit(X_train, y_train)
+
+l2_precision, l2_recall, l2_f1 = asses_logistic_model(log_reg_2 ,X_train, X_test, y_train, y_test)
+
+# %%
+assert 0.26 < nol_precision < 0.27
+assert 0.66 < nol_recall < 0.67
+assert 0.37 < nol_f1 < 0.38
+
+assert 0.26 < l1_precision < 0.27
+assert 0.66 < l1_recall < 0.67
+assert 0.37 < l1_f1 < 0.38
+
+assert 0.26 < l2_precision < 0.27
+assert 0.66 < l2_recall < 0.67
+assert 0.37 < l2_f1 < 0.38
+
+# %%
+f1_train = f1_score(y_train, log_reg.predict(X_train))
+f1_test = f1_score(y_test, log_reg.predict(X_test))
+
+print(f"Train f1: {f1_train*100:.2f}%")
+print(f"Test f1: {f1_test*100:.2f}%")
 
 # %% editable=true slideshow={"slide_type": ""} tags=["ex"]
 assert 0.38 < f1_train < 0.39
 assert 0.37 < f1_test < 0.38
 
 # %% [markdown] editable=true slideshow={"slide_type": ""} tags=["ex"]
-# // skomentuj tutaj
-#
-#
+# Model osiąga gorsze wyniki na zbiorze testowym, co może wskazywać na overfitting. Jednak różnica wynosząca około jeden procent jest na tyle mała, że trudno wyciągnąć jednoznaczne wnioski. Z całą pewnością można jednak stwierdzić, że model nie został dostatecznie dobrze wytrenowany.
 
 # %% [markdown] editable=true slideshow={"slide_type": ""} tags=["ex"]
 # ### Zadanie 11 (2.0 punkty)
@@ -1452,17 +1504,47 @@ assert 0.37 < f1_test < 0.38
 # 4. Zdecyduj, czy jest sens tworzyć modele z regularyzacją. Jeżeli tak, to wytrenuj i dokonaj tuningu takich modeli. Jeżeli nie, to uzasadnij czemu.
 
 # %% editable=true slideshow={"slide_type": ""} tags=["ex"]
-# your_code
+X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.25, random_state=0, stratify=y)
 
+
+# %%
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+
+standard_scaler = StandardScaler()
+polynomial_features = PolynomialFeatures(degree=2, include_bias=False)
+
+numerical_pipeline = Pipeline([
+    ('poly_features', polynomial_features),
+    ('standard_scaler', standard_scaler)
+])
+
+column_transformer = ColumnTransformer([
+    ('categorical',one_hot_encoder, categorical_features),
+    ('numerical', numerical_pipeline, numerical_features)
+])
+
+X_train_poly = column_transformer.fit_transform(X_train)
+X_test_poly = column_transformer.transform(X_test)
+
+# %%
+log_reg = LogisticRegression(random_state=0, class_weight="balanced", penalty=None, max_iter=1000)
+log_reg.fit(X_train_poly, y_train)
+
+y_pred_train = log_reg.predict(X_train_poly)
+y_pred_test = log_reg.predict(X_test_poly)
+
+f1_train = f1_score(y_train, y_pred_train)
+f1_test = f1_score(y_test, y_pred_test)
+
+print(f"Train f1: {f1_train*100:.2f}")
+print(f"Test f1: {f1_test*100:.2f}")
 
 # %% editable=true slideshow={"slide_type": ""} tags=["ex"]
 assert 0.44 < f1_train < 0.45
 assert 0.43 < f1_test < 0.44
 
 # %% [markdown] editable=true slideshow={"slide_type": ""} tags=["ex"]
-# // skomentuj tutaj
-#
-#
+# Wartości F1 dla zbioru treningowego i testowego są dość zbliżone, a wagi modelu nie przyjmują podejrzanie wysokich wartości, co sugeruje, że przetrenowanie raczej nie występuje. Problemem może być po prostu niewystarczająca ilość danych, co uniemożliwia wytrenowanie bardziej efektywnego modelu.
 
 # %% [markdown] editable=true slideshow={"slide_type": ""} tags=["ex"]
 # ## Zadanie 12 dodatkowe (3 punkty)
