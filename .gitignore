@@ -1,2 +1,10 @@
 .ipynb_checkpoints
 .idea
+
+
+lab5/output/
+lab5/qa_output/
+lab5/poquad-dev.json
+lab5/poquad-train.json
+lab5/question-context-answering/
+lab5/question-context-classification/
